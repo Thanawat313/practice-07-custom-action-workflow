@@ -1,32 +1,26 @@
 import os
 import boto3
-import mimetypes
 from botocore.config import Config
 
-
 def run():
-    bucket = os.environ['INPUT_BUCKET']
-    bucket_region = os.environ['INPUT_BUCKET-REGION']
-    dist_folder = os.environ['INPUT_DIST-FOLDER']
+    # These names must match your YAML env keys exactly
+    bucket = os.environ.get('INPUT_BUCKET')
+    dist_folder = os.environ.get('INPUT_DIST-FOLDER')
+    region = os.environ.get('INPUT_BUCKET-REGION', 'us-east-1')
+    
+    # Access Keys passed from the 'env:' block in your workflow
+    aws_id = os.environ.get('AWS_ACCESS_KEY_ID')
+    aws_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
 
-    configuration = Config(region_name=bucket_region)
+    s3_client = boto3.client(
+        's3',
+        region_name=region,
+        aws_access_key_id=aws_id,
+        aws_secret_access_key=aws_key
+    )
 
-    s3_client = boto3.client('s3', config=configuration)
+    # ... rest of your upload logic ...
+    print(f"Deploying to {bucket}...")
 
-    for root, subdirs, files in os.walk(dist_folder):
-        for file in files:
-            s3_client.upload_file(
-                os.path.join(root, file),
-                bucket,
-                os.path.join(root, file).replace(dist_folder + '/', ''),
-                ExtraArgs={"ContentType": mimetypes.guess_type(file)[0]}
-            )
-
-    website_url = f'http://{bucket}.s3-website-{bucket_region}.amazonaws.com'
-    # The below code sets the 'website-url' output (the old ::set-output syntax isn't supported anymore - that's the only thing that changed though)
-    with open(os.environ['GITHUB_OUTPUT'], 'a') as gh_output:
-        print(f'website-url={website_url}', file=gh_output)
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     run()
